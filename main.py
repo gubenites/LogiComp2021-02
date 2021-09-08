@@ -1,49 +1,154 @@
 import sys
-
-conta = ''.join(sys.argv[1:])
-
-def operacao(x):
-    lista_valores = []
-    lista_todos_valores = []
-    lista_operacoes = []
-    valor_result = 0
-    valor_result_final = 0
+import pyparsing
 
 
-    for item in range(len(x)):
-        if x[item] != "+" or x[item] != "-" and x[item] != " ":
-            lista_valores.append(x[item])
+class Token:
+    def __init__(self, type:str , value):
+        self.type = type
+        self.value = value
 
-        if x[item] == "+" or x[item] == "-":
-            lista_valores = lista_valores[:-1]
-            lista_operacoes.append(x[item])
+class Tokenizer:
+    def __init__(self, origin: str, position: int):
+        self.origin = origin
+        self.position = position
+        self.actual = Token(0,0)
+        self.selectNext()
 
-            valor = int(''.join(lista_valores))
-            lista_todos_valores.append(valor)
+    #Metodo de retorno padronizado para token do tipo EOF
 
-            lista_valores.clear()
+    def eofToken(self):
+        self.actual = Token("EOF", '"')
 
-        if item == (len(x) - 1):
-            valor = int(''.join(lista_valores))
-            lista_todos_valores.append(valor)
+    #Metodo de retorno padronizado para token do tipo OPERAÇÃO
 
-    for item in range(len(lista_operacoes)):
-        if item == 0:
-            if lista_operacoes[item] == "+":
-                valor_result_final = lista_todos_valores[item] + lista_todos_valores[item + 1]
+    def opToken(self):
+        self.actual = Token("Operacao", self.origin[self.position])
+        self.position += 1
 
-            if lista_operacoes[item] == "-":
-                valor_result_final = lista_todos_valores[0] - lista_todos_valores[1]
+    #Metodo de retorno padronizado para token do tipo INT
 
-        if item != 0 and item < (len(lista_todos_valores) - 1):
-            if lista_operacoes[item] == "+":
-                valor_result = valor_result_final + lista_todos_valores[item + 1]
-                valor_result_final = valor_result
+    def intToken(self, concInt):
+        self.actual = Token("Inteiro", int(concInt))
 
-            if lista_operacoes[item] == "-":
-                valor_result = valor_result_final - lista_todos_valores[item + 1]
-                valor_result_final = valor_result
+    def selectNext(self):
+        numeros = [str(i + 1) for i in range(-1,9)]
+        concString = ""
 
-    return valor_result_final
+        # print(self.actual.value)
 
-print(operacao(conta))
+        if self.position == (len(self.origin)):
+            self.eofToken()
+            return self.actual
+
+        if self.position < (len(self.origin)):
+            # print(self.origin[self.position])
+            while self.origin[self.position] == " ":
+                self.position += 1
+
+
+            if self.origin[self.position] == "+" or self.origin[self.position] == "-" or self.origin[self.position] == "*" or self.origin[self.position] == "/":
+                self.opToken()
+                return self.actual
+
+            if self.origin[self.position] in numeros:
+                while self.origin[self.position] in numeros:
+                    # print(self.position)
+                    concString += self.origin[self.position]
+
+                    self.position += 1
+
+                    if self.position == (len(self.origin)):
+                        break
+
+                self.intToken(concString)
+                return self.actual
+
+            return self.actual
+
+        if self.position >= (len(self.origin) - 1):
+            self.eofToken()
+
+
+class Parser:
+    def __init__(self):
+        self.tokens = None
+
+    def parseTerm(self):
+        actToken = self.tokens.actual
+
+        if actToken.type == "Inteiro":
+            resultado = actToken.value
+
+            actToken = self.tokens.selectNext()
+
+            while actToken.value == "*" or actToken.value == "/":
+                if actToken.value == "*":
+                    actToken = self.tokens.selectNext()
+                    if actToken.type == "Inteiro":
+                        resultado *= actToken.value
+                    else:
+                        raise Exception("Erro")
+
+                if actToken.value == "/":
+                    actToken = self.tokens.selectNext()
+                    if actToken.type == "Inteiro":
+                        resultado /= actToken.value
+
+                    else:
+                        raise Exception("Erro")
+
+                actToken = self.tokens.selectNext()
+            return resultado
+        else:
+            raise Exception("Error")
+
+    def parseExpression(self):
+        actToken = self.tokens.actual
+        resultado = 0
+
+        if actToken.type == "Inteiro":
+            resultado += Parser.parseTerm(self)
+            # print(self.tokens.actual.value)
+            actToken = self.tokens.actual
+
+            while actToken.type == "Operacao":
+                # print(actToken.value)
+                if actToken.value == "+":
+                    actToken = self.tokens.selectNext()
+
+                    if actToken.type == "Inteiro":
+                        resultado += Parser.parseTerm(self)
+                        # print(resultado)
+                    else: raise Exception("ERRO")
+                # print(actToken.value)
+                if actToken.value == "-":
+                    actToken = self.tokens.selectNext()
+
+                    if actToken.type == "Inteiro":
+                        resultado -= Parser.parseTerm(self)
+                    else: raise Exception("Erro")
+                # print(actToken.value)
+                # actToken = self.tokens.selectNext()
+                # print(actToken.value)
+            return resultado
+        else: raise Exception("Error")
+
+
+
+    def run(self,strCodigo):
+        strCodigo = PreProcessing.process(strCodigo)
+        self.tokens = Tokenizer(strCodigo,0)
+        resultadoFinal = self.parseExpression()
+
+        return resultadoFinal
+
+class PreProcessing():
+    def process(codigo):
+        filtroT = pyparsing.nestedExpr("/*", "*/").suppress()
+        expFilt = filtroT.transformString(codigo).replace(" ", "")
+
+        return expFilt
+
+operacao = ''.join(sys.argv[1:])
+pars = Parser()
+print(pars.run(operacao))
