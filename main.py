@@ -2,6 +2,48 @@ import sys
 import pyparsing
 import re
 
+class Node:
+    def __init__(self, value):
+        self.value = value
+        self.children = []
+
+class BinOp(Node):
+    def Evaluate(self):
+
+        lChild = self.children[0].Evaluate()
+        rChild = self.children[1].Evaluate()
+
+        if self.value == "*":
+            return lChild * rChild
+        if self.value == "/":
+            return int(lChild / rChild)
+        if self.value == "+":
+            return lChild + rChild
+        if self.value == "-":
+            return lChild - rChild
+        else:
+            raise Exception("Error")
+
+class UnOp(Node):
+    def Evaluate(self):
+        child = self.children[0].Evaluate()
+
+        if self.value == "+":
+            return 1 * child
+        if self.value == "-":
+            return -1 * child
+        else:
+            raise Exception("Error")
+
+class IntVal(Node):
+    def Evaluate(self):
+        return self.value
+
+class NoOp(Node):
+    def Evaluate(self):
+        pass
+
+
 class Token:
     def __init__(self, type:str , value):
         self.type = type
@@ -30,6 +72,10 @@ class Tokenizer:
     def intToken(self, concInt):
         self.actual = Token("Inteiro", int(concInt))
 
+    def parToken(self,token):
+        self.actual = Token("Parenteses",self.origin[self.position])
+        self.position += 1
+
     def selectNext(self):
         numeros = [str(i + 1) for i in range(-1,9)]
         concString = ""
@@ -45,6 +91,10 @@ class Tokenizer:
             while self.origin[self.position] == " ":
                 self.position += 1
 
+            if self.origin[self.position] == "(" or self.origin[self.position] == ")":
+                self.parToken(self.origin[self.position])
+
+                return self.actual
 
             if self.origin[self.position] == "+" or self.origin[self.position] == "-" or self.origin[self.position] == "*" or self.origin[self.position] == "/":
                 self.opToken()
@@ -73,72 +123,97 @@ class Parser:
     def __init__(self):
         self.tokens = None
 
-    def parseTerm(self):
+    def parseFactor(self):
         actToken = self.tokens.actual
 
         if actToken.type == "Inteiro":
-            resultado = actToken.value
+            return IntVal(actToken.value)
+
+        if actToken.value == "+":
+            resultado = UnOp(actToken.value)
             actToken = self.tokens.selectNext()
+            resultado.children.append(Parser.parseFactor(self))
 
-            while actToken.value == "*" or actToken.value == "/":
-                if actToken.value == "*":
-                    actToken = self.tokens.selectNext()
-                    if actToken.type == "Inteiro":
-                        resultado *= actToken.value
-                    else:
-                        raise Exception("Erro")
+            return resultado
+        if actToken.value == "-":
+            resultado = UnOp(actToken.value)
+            actToken = self.tokens.selectNext()
+            resultado.children.append(Parser.parseFactor(self))
+            # print(resultado.children)
 
-                if actToken.value == "/":
-                    actToken = self.tokens.selectNext()
-                    if actToken.type == "Inteiro":
-                        resultado /= actToken.value
+            return resultado
 
-                    else:
-                        raise Exception("Erro")
+        if actToken.value == "(":
+            actToken = self.tokens.selectNext()
+            resultado = Parser.parseExpression(self)
+            # print(resultado.children[1].value)
+            actToken = self.tokens.actual
+
+            if actToken.value == ")":
+                return resultado
+            else:
+                raise Exception("ERRO")
+
+    def parseTerm(self):
+        actToken = self.tokens.actual
+
+        resultado = Parser.parseFactor(self)
+
+        actToken = self.tokens.selectNext()
+
+        while actToken.value == "*" or actToken.value == "/":
+            if actToken.value == "*":
+                BinaryOp = BinOp(actToken.value)
+                BinaryOp.children.append(resultado)
 
                 actToken = self.tokens.selectNext()
-            return resultado
-        else:
-            raise Exception("Error")
+
+                BinaryOp.children.append(Parser.parseFactor(self))
+                resultado = BinaryOp
+
+            if actToken.value == "/":
+                BinaryOp = BinOp(actToken.value)
+                BinaryOp.children.append(resultado)
+
+                actToken = self.tokens.selectNext()
+
+                BinaryOp.children.append(Parser.parseFactor(self))
+                resultado = BinaryOp
+
+            actToken = self.tokens.selectNext()
+
+        return resultado
 
     def parseExpression(self):
         actToken = self.tokens.actual
         resultado = 0
 
-        if actToken.type == "Inteiro":
-            resultado += Parser.parseTerm(self)
-            # print(self.tokens.actual.value)
-            actToken = self.tokens.actual
-            # print(actToken.value)
+        resultado = Parser.parseTerm(self)
+        actToken = self.tokens.actual
 
-            # print(actToken.type)
-            while actToken.type == "Operacao":
-                # print(actToken.value)
-                if actToken.value == "+":
-                    actToken = self.tokens.selectNext()
+        while actToken.type == "Operacao":
 
-                    if actToken.type == "Inteiro":
-                        resultado += Parser.parseTerm(self)
-                        # print(resultado)
-                        actToken = self.tokens.actual
-                        # print(actToken.value)
-                    else: raise Exception("ERRO")
-                # print(actToken.value)
-                if actToken.value == "-":
-                    # print(actToken.value)
-                    actToken = self.tokens.selectNext()
+            if actToken.value == "+":
+                BinaryOp = BinOp(actToken.value)
+                BinaryOp.children.append(resultado)
 
-                    if actToken.type == "Inteiro":
-                        resultado -= Parser.parseTerm(self)
+                actToken = self.tokens.selectNext()
 
-                        actToken = self.tokens.actual
-                    else: raise Exception("Erro")
+                BinaryOp.children.append(Parser.parseTerm(self))
+                resultado = BinaryOp
+                actToken = self.tokens.actual
 
-                # print(self.tokens.actual.value)
-                # actToken = self.tokens.selectNext()
-                # print(actToken.value)
-            return resultado
-        else: raise Exception("Error")
+            if actToken.value == "-":
+                BinaryOp = BinOp(actToken.value)
+                BinaryOp.children.append(resultado)
+
+                actToken = self.tokens.selectNext()
+
+                BinaryOp.children.append(Parser.parseTerm(self))
+                resultado = BinaryOp
+                actToken = self.tokens.actual
+
+        return resultado
 
 
 
@@ -152,7 +227,8 @@ class Parser:
 class PreProcessing():
     def process(codigo):
         filtroT = pyparsing.nestedExpr("/*", "*/").suppress()
-
+        somaa_p = 0
+        somaf_p = 0
         varFiltered = filtroT.transformString(codigo)
 
         if "*" not in varFiltered and "/" not in varFiltered and "+" not in varFiltered and "-" not in varFiltered:
@@ -162,9 +238,25 @@ class PreProcessing():
         # filtered = re.sub("[/*@*&?].*[*/@*&?]" ,"" ,codigo).replace(" ", "")
         filtered = re.sub(re.compile("/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/",re.DOTALL ) ,"" ,codigo).replace(" ", "")
 
+        for item in range(len(filtered)):
+            if (filtered[item] == "/" and filtered[item + 1] == "*") or filtered[item] == "*" and filtered[item + 1] == "/":
+                raise Exception("Erro - comentario não esta fechando")
+
+        for item in filtered:
+            if item == "(":
+                somaa_p += 1
+            if item == ")":
+                somaf_p += 1
+        somaf = somaa_p + somaf_p
+        if (somaf % 2) != 0:
+            raise Exception("Error - parenteses não esta fechando")
+
         return filtered
 
-
-operacao = ''.join(sys.argv[1:])
+cFile = open(sys.argv[1], 'r')
+operacao = ''.join(cFile.read()).strip()
+# print(operacao)
+# operacao = ''.join(sys.argv[1:])
 pars = Parser()
-print(int(pars.run(operacao)))
+resultado = pars.run(operacao)
+print(resultado.Evaluate())
