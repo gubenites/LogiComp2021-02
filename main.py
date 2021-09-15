@@ -1,6 +1,6 @@
 import sys
 import pyparsing
-
+import re
 
 class Token:
     def __init__(self, type:str , value):
@@ -30,6 +30,10 @@ class Tokenizer:
     def intToken(self, concInt):
         self.actual = Token("Inteiro", int(concInt))
 
+    def parToken(self,token):
+        self.actual = Token("Parenteses",self.origin[self.position])
+        self.position += 1
+
     def selectNext(self):
         numeros = [str(i + 1) for i in range(-1,9)]
         concString = ""
@@ -45,6 +49,10 @@ class Tokenizer:
             while self.origin[self.position] == " ":
                 self.position += 1
 
+            if self.origin[self.position] == "(" or self.origin[self.position] == ")":
+                self.parToken(self.origin[self.position])
+
+                return self.actual
 
             if self.origin[self.position] == "+" or self.origin[self.position] == "-" or self.origin[self.position] == "*" or self.origin[self.position] == "/":
                 self.opToken()
@@ -73,65 +81,76 @@ class Parser:
     def __init__(self):
         self.tokens = None
 
-    def parseTerm(self):
+    def parseFactor(self):
         actToken = self.tokens.actual
 
         if actToken.type == "Inteiro":
-            resultado = actToken.value
+            return actToken.value
+
+        if actToken.value == "+":
+            actToken = self.tokens.selectNext()
+            resultado = 1 * Parser.parseFactor(self)
+
+            return resultado
+        if actToken.value == "-":
+            actToken = self.tokens.selectNext()
+            resultado = -1* Parser.parseFactor(self)
+
+            return resultado
+
+        if actToken.value == "(":
+            actToken = self.tokens.selectNext()
+            resultado = Parser.parseExpression(self)
+
+            actToken = self.tokens.actual
+
+            if actToken.value == ")":
+                return resultado
+            else:
+                raise Exception("ERRO")
+
+    def parseTerm(self):
+        actToken = self.tokens.actual
+
+        resultado = Parser.parseFactor(self)
+
+        actToken = self.tokens.selectNext()
+
+        while actToken.value == "*" or actToken.value == "/":
+            if actToken.value == "*":
+                actToken = self.tokens.selectNext()
+
+                resultado *= Parser.parseFactor(self)
+
+            if actToken.value == "/":
+                actToken = self.tokens.selectNext()
+
+                resultado /= Parser.parseFactor(self)
 
             actToken = self.tokens.selectNext()
 
-            while actToken.value == "*" or actToken.value == "/":
-                if actToken.value == "*":
-                    actToken = self.tokens.selectNext()
-                    if actToken.type == "Inteiro":
-                        resultado *= actToken.value
-                    else:
-                        raise Exception("Erro")
-
-                if actToken.value == "/":
-                    actToken = self.tokens.selectNext()
-                    if actToken.type == "Inteiro":
-                        resultado /= actToken.value
-
-                    else:
-                        raise Exception("Erro")
-
-                actToken = self.tokens.selectNext()
-            return resultado
-        else:
-            raise Exception("Error")
+        return resultado
 
     def parseExpression(self):
         actToken = self.tokens.actual
         resultado = 0
 
-        if actToken.type == "Inteiro":
-            resultado += Parser.parseTerm(self)
-            # print(self.tokens.actual.value)
-            actToken = self.tokens.actual
+        resultado = Parser.parseTerm(self)
+        actToken = self.tokens.actual
 
-            while actToken.type == "Operacao":
-                # print(actToken.value)
-                if actToken.value == "+":
-                    actToken = self.tokens.selectNext()
+        while actToken.type == "Operacao":
 
-                    if actToken.type == "Inteiro":
-                        resultado += Parser.parseTerm(self)
-                        # print(resultado)
-                    else: raise Exception("ERRO")
-                # print(actToken.value)
-                if actToken.value == "-":
-                    actToken = self.tokens.selectNext()
+            if actToken.value == "+":
+                actToken = self.tokens.selectNext()
+                resultado += Parser.parseTerm(self)
+                actToken = self.tokens.actual
 
-                    if actToken.type == "Inteiro":
-                        resultado -= Parser.parseTerm(self)
-                    else: raise Exception("Erro")
-                # print(actToken.value)
-                # actToken = self.tokens.selectNext()
-                # print(actToken.value)
-            return resultado
-        else: raise Exception("Error")
+            if actToken.value == "-":
+                actToken = self.tokens.selectNext()
+                resultado -= Parser.parseTerm(self)
+                actToken = self.tokens.actual
+
+        return resultado
 
 
 
@@ -145,10 +164,29 @@ class Parser:
 class PreProcessing():
     def process(codigo):
         filtroT = pyparsing.nestedExpr("/*", "*/").suppress()
-        expFilt = filtroT.transformString(codigo).replace(" ", "")
+        somaa_p = 0
+        somaf_p = 0
+        varFiltered = filtroT.transformString(codigo)
 
-        return expFilt
+        if "*" not in varFiltered and "/" not in varFiltered and "+" not in varFiltered and "-" not in varFiltered:
+            if len(varFiltered.replace(" ", "")) > 1:
+                raise Exception("Error")
+
+        # filtered = re.sub("[/*@*&?].*[*/@*&?]" ,"" ,codigo).replace(" ", "")
+        filtered = re.sub(re.compile("/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/",re.DOTALL ) ,"" ,codigo).replace(" ", "")
+
+        for item in filtered:
+            if item == "(":
+                somaa_p += 1
+            if item == ")":
+                somaf_p += 1
+        somaf = somaa_p + somaf_p
+        if (somaf % 2) != 0:
+            raise Exception("Error")
+
+        return filtered
+
 
 operacao = ''.join(sys.argv[1:])
 pars = Parser()
-print(pars.run(operacao))
+print(int(pars.run(operacao)))
