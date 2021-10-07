@@ -1,6 +1,9 @@
 import sys
 import pyparsing
 import re
+import string
+
+symbolTab = dict()
 
 class Node:
     def __init__(self, value):
@@ -43,11 +46,47 @@ class NoOp(Node):
     def Evaluate(self):
         pass
 
+class printOp(Node):
+    def Evaluate(self):
+        print(self.children[0].Evaluate())
 
 class Token:
     def __init__(self, type:str , value):
         self.type = type
         self.value = value
+
+class Operacoes(Node):
+    def Evaluate(self):
+        for item in self.children:
+            item.Evaluate()
+
+class attributionOp(Node):
+    def Evaluate(self):
+        var = SymbolTable(self.value)
+
+        return var.getter()
+
+class alocaOp(Node):
+    def Evaluate(self):
+
+        symbolTable = SymbolTable(self.children[0].value)
+        symbolTable.setter(self.children[1].Evaluate())
+
+class SymbolTable:
+    def __init__(self,var):
+        self.var = var
+
+    def setter(self,valor):
+        symbolTab[self.var] = valor
+
+    def getter(self):
+        if self.var in symbolTab:
+            returned_stattement = symbolTab[self.var]
+
+            return returned_stattement
+
+        else:
+            raise Exception("Variavel não existe na tabela de simbolos")
 
 class Tokenizer:
     def __init__(self, origin: str, position: int):
@@ -78,6 +117,8 @@ class Tokenizer:
 
     def selectNext(self):
         numeros = [str(i + 1) for i in range(-1,9)]
+        alphabet_string = list(string.ascii_lowercase)
+        list_not_accepted = list(string.ascii_uppercase)
         concString = ""
 
         # print(self.actual.value)
@@ -98,6 +139,7 @@ class Tokenizer:
 
             if self.origin[self.position] == "+" or self.origin[self.position] == "-" or self.origin[self.position] == "*" or self.origin[self.position] == "/":
                 self.opToken()
+
                 return self.actual
 
             if self.origin[self.position] in numeros:
@@ -112,6 +154,32 @@ class Tokenizer:
 
                 self.intToken(concString)
                 return self.actual
+
+            if self.origin[self.position] == "=":
+                self.actual = Token("Equal", "=")
+                self.position += 1
+
+            if self.origin[self.position] in alphabet_string or self.origin[self.position] == "_" or self.origin[self.position] in list_not_accepted:
+                while self.origin[self.position] in alphabet_string or self.origin[self.position] in numeros or self.origin[self.position] == "_" or self.origin[self.position] in list_not_accepted:
+                    if self.origin[self.position] in list_not_accepted:
+                        raise Exception("Variavel não pode ser maiuscula")
+
+                    concString += self.origin[self.position]
+                    self.position += 1
+
+
+                if concString == "println":
+                    self.actual = Token("PRINT", concString)
+
+                    return self.actual
+                else:
+                    self.actual = Token("Variable", concString)
+
+                    return self.actual
+
+            if self.origin[self.position] == ";":
+                self.actual = Token("ENDLINE",";")
+                self.position += 1
 
             return self.actual
 
@@ -154,13 +222,17 @@ class Parser:
             else:
                 raise Exception("ERRO")
 
+        if actToken.type == "Variable":
+            resultado = attributionOp(actToken.value)
+            # actToken = self.tokens.selectNext()
+
+            return resultado
+
     def parseTerm(self):
         actToken = self.tokens.actual
 
         resultado = Parser.parseFactor(self)
-
         actToken = self.tokens.selectNext()
-
         while actToken.value == "*" or actToken.value == "/":
             if actToken.value == "*":
                 BinaryOp = BinOp(actToken.value)
@@ -215,12 +287,76 @@ class Parser:
 
         return resultado
 
+    def parseCommand(self):
+        actToken = self.tokens.actual
+        resultado = NoOp(None)
 
+        if actToken.type == "Variable":
+            varToAlocate = alocaOp(None)
+
+            varName = alocaOp(self.tokens.actual.value)
+
+            actToken = self.tokens.selectNext()
+
+            varToAlocate.children.append(varName)
+
+            if actToken.type != "Variable":
+                actToken = self.tokens.selectNext()
+
+            resultado_alocate = Parser.parseExpression(self)
+            varToAlocate.children.append(resultado_alocate)
+
+            actToken = self.tokens.actual
+
+            resultado = varToAlocate
+
+        if actToken.type == "PRINT":
+            printEmpty = printOp(None)
+
+            actToken = self.tokens.selectNext()
+
+            if actToken.value == "(":
+                actToken = self.tokens.selectNext()
+
+                resultado_print = Parser.parseExpression(self)
+
+                printEmpty.children.append(resultado_print)
+
+                resultado = printEmpty
+
+                actToken = self.tokens.actual
+
+
+                if actToken.value != ")":
+                    raise Exception("Não fechou parenteses")
+                else:
+                    actToken = self.tokens.selectNext()
+            else:
+                raise Exception("Parenteses não abriu")
+
+        actToken = self.tokens.actual
+
+        if actToken.value == ";":
+            actToken = self.tokens.selectNext()
+        else:
+            raise Exception("Linha não condiz com sintaxe da linguagem")
+
+        return resultado
+
+    def parseBlock(self):
+        actToken = self.tokens.actual
+        resultsNodes = Operacoes(None)
+
+        while self.tokens.actual.type != "EOF":
+            resultado = Parser.parseCommand(self)
+            resultsNodes.children.append(resultado)
+
+        return resultsNodes
 
     def run(self,strCodigo):
         strCodigo = PreProcessing.process(strCodigo)
         self.tokens = Tokenizer(strCodigo,0)
-        resultadoFinal = self.parseExpression()
+        resultadoFinal = self.parseBlock()
 
         return resultadoFinal
 
@@ -231,12 +367,14 @@ class PreProcessing():
         somaf_p = 0
         varFiltered = filtroT.transformString(codigo)
 
-        if "*" not in varFiltered and "/" not in varFiltered and "+" not in varFiltered and "-" not in varFiltered:
-            if len(varFiltered.replace(" ", "")) > 1:
-                raise Exception("Error")
+        # if "*" not in varFiltered and "/" not in varFiltered and "+" not in varFiltered and "-" not in varFiltered:
+        #     if len(varFiltered.replace(" ", "")) > 1:
+        #         raise Exception("Error")
 
         # filtered = re.sub("[/*@*&?].*[*/@*&?]" ,"" ,codigo).replace(" ", "")
         filtered = re.sub(re.compile("/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/",re.DOTALL ) ,"" ,codigo).replace(" ", "")
+        filtered = filtered.replace('\n', "")
+        filtered = filtered.replace('\t', "")
 
         for item in range(len(filtered)):
             if (filtered[item] == "/" and filtered[item + 1] == "*") or filtered[item] == "*" and filtered[item + 1] == "/":
@@ -253,9 +391,10 @@ class PreProcessing():
 
         return filtered
 
-# cFile = open(sys.argv[1], 'r')
-# operacao = ''.join(cFile.read()).strip()
-operacao = ''.join(sys.argv[1:])
+cFile = open(sys.argv[1], 'r')
+operacao = ''.join(cFile.read()).strip()
+# print(operacao)
+# operacao = ''.join(sys.argv[1:])
 pars = Parser()
 resultado = pars.run(operacao)
-print(resultado.Evaluate())
+resultado.Evaluate()
