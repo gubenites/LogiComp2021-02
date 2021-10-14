@@ -391,10 +391,10 @@ class PreProcessing():
 
         return filtered
 
-cFile = open(sys.argv[1], 'r')
-operacao = ''.join(cFile.read()).strip()
+# cFile = open(sys.argv[1], 'r')
+# operacao = ''.join(cFile.read()).strip()
 # print(operacao)
-# operacao = ''.join(sys.argv[1:])
+operacao = ''.join(sys.argv[1:])
 pars = Parser()
 resultado = pars.run(operacao)
 resultado.Evaluate()
