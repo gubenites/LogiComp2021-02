@@ -366,14 +366,19 @@ class PreProcessing():
         somaa_p = 0
         somaf_p = 0
         varFiltered = filtroT.transformString(codigo)
+        new_filtered = ''
+        for item in range(len(varFiltered)):
+            if varFiltered[item] == "\\" and varFiltered[item + 1] == "n" or varFiltered[item] == "n" and varFiltered[item - 1] == "\\":
+                pass
+            else:
+                new_filtered += varFiltered[item]
 
         # if "*" not in varFiltered and "/" not in varFiltered and "+" not in varFiltered and "-" not in varFiltered:
         #     if len(varFiltered.replace(" ", "")) > 1:
         #         raise Exception("Error")
 
         # filtered = re.sub("[/*@*&?].*[*/@*&?]" ,"" ,codigo).replace(" ", "")
-        filtered = re.sub(re.compile("/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/",re.DOTALL ) ,"" ,codigo).replace(" ", "")
-        filtered = filtered.replace('\n', "")
+        filtered = re.sub(re.compile("/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/",re.DOTALL ) ,"" ,new_filtered).replace(" ", "").replace("\n", "")
         filtered = filtered.replace('\t', "")
 
         for item in range(len(filtered)):
