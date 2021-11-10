@@ -62,6 +62,14 @@ class printOp(Node):
     def Evaluate(self):
         print(self.children[0].Evaluate())
 
+class ForOp(Node):
+    def Evaluate(self):
+        self.children[0].Evaluate()
+
+        while(self.children[1].Evaluate()):
+            self.children[3].Evaluate()
+            self.children[2].Evaluate()
+
 class WhileOp(Node):
     def Evaluate(self):
         while(self.children[0].Evaluate()):
@@ -238,6 +246,11 @@ class Tokenizer:
 
                     concString += self.origin[self.position]
                     self.position += 1
+
+                if concString == "for":
+                    self.actual = Token("FOR", concString)
+
+                    return self.actual
 
                 if concString == "while":
                     self.actual = Token("WHILE",concString)
@@ -532,6 +545,49 @@ class Parser:
                 raise Exception("Linha não condiz com sintaxe da linguagem")
 
             return resultado
+
+        if actToken.type == "FOR":
+            forNode =  ForOp(None)
+
+            actToken = self.tokens.selectNext()
+
+            if actToken.value == "(":
+                actToken = self.tokens.selectNext()
+                resultado_aloca_for = Parser.parseCommand(self)
+                forNode.children.append(resultado_aloca_for)
+
+                actToken = self.tokens.actual
+                actToken = self.tokens.selectNext()
+
+                resultado_op_for = Parser.orExpr(self)
+                forNode.children.append(resultado_op_for)
+
+                actToken = self.tokens.actual
+                actToken = self.tokens.selectNext()
+
+                resultado_sum_for = Parser.parseCommand(self)
+                forNode.children.append(resultado_sum_for)
+
+                actToken = self.tokens.actual
+
+                if actToken.value != ")":
+                    raise Exception("Erro")
+                else:
+                    actToken = self.tokens.selectNext()
+
+                    if actToken.value != "{":
+                        raise Exception("Não abre chaves")
+
+                resultado_for_block = Parser.parseCommand(self)
+                forNode.children.append(resultado_for_block)
+
+                resultado = forNode
+                actToken = self.tokens.actual
+
+                return resultado
+
+            else:
+                raise Exception("Error - Não abre parenteses")
 
         if actToken.type == "WHILE":
             whileNode = WhileOp(None)
