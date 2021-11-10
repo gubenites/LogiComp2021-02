@@ -64,11 +64,13 @@ class printOp(Node):
 
 class ForOp(Node):
     def Evaluate(self):
-        self.children[0].Evaluate()
+        # self.children[0].Evaluate()
+        #
+        # while(self.children[1].Evaluate()):
+        #     self.children[3].Evaluate()
+        #     self.children[2].Evaluate()
+        pass
 
-        while(self.children[1].Evaluate()):
-            self.children[3].Evaluate()
-            self.children[2].Evaluate()
 
 class WhileOp(Node):
     def Evaluate(self):
