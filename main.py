@@ -67,16 +67,6 @@ class WhileOp(Node):
         while(self.children[0].Evaluate()):
             self.children[1].Evaluate()
 
-class ForOp(Node):
-    def Evaluate(self):
-        self.children[0].Evaluate
-
-        while (self.children[1].Evaluate()):
-            self.children[3].Evaluate()
-            self.children[2].Evaluate()
-        return self.children[0].Evaluate()
-        # for(self.children):
-
 class ifOp(Node):
     def Evaluate(self):
 
@@ -248,11 +238,6 @@ class Tokenizer:
 
                     concString += self.origin[self.position]
                     self.position += 1
-
-                if concString == "for":
-                    self.actual = Token("FOR", concString)
-
-                    return self.actual
 
                 if concString == "while":
                     self.actual = Token("WHILE",concString)
@@ -548,52 +533,6 @@ class Parser:
 
             return resultado
 
-        if actToken.type == "FOR":
-            forNode = ForOp(None)
-
-            actToken = self.tokens.selectNext()
-
-            if actToken.value == "(":
-                actToken = self.tokens.selectNext()
-
-                resultado_for_block_declaration = Parser.parseCommand(self)
-                forNode.children.append(resultado_for_block_declaration)
-
-                actToken= self.tokens.actual
-
-                # actToken = self.tokens.actual
-                # actToken = self.tokens.selectNext()
-                # actToken = self.tokens.selectNext()
-                #
-                # resultado_for_block_condition = Parser.orExpr(self)
-                # forNode.children.append(resultado_for_block_condition)
-                #
-                # actToken = self.tokens.actual
-                # actToken = self.tokens.selectNext()
-                #
-                # resultado_for_block_sum = Parser.orExpr(self)
-                # forNode.children.append(resultado_for_block_sum)
-                #
-                # actToken = self.tokens.actual
-                # actToken = self.tokens.selectNext()
-                # actToken = self.tokens.selectNext()
-                # actToken = self.tokens.selectNext()
-                #
-                # if actToken.value != ")":
-                #     raise Exception("Erro")
-                # else:
-                #     actToken = self.tokens.selectNext()
-                #     actToken = self.tokens.selectNext()
-                #
-                # resultado_for_block =  Parser.parseCommand(self)
-                # forNode.children.append(resultado_for_block)
-                #
-                # resultado = forNode
-                # actToken = self.tokens.actual
-                #
-                print(forNode.children)
-                return resultado
-
         if actToken.type == "WHILE":
             whileNode = WhileOp(None)
 
@@ -645,8 +584,8 @@ class Parser:
                 else:
                     actToken = self.tokens.selectNext()
 
-                    if actToken.value != "{":
-                        raise Exception("Não abre chaves")
+                    # if actToken.value != "{":
+                    #     raise Exception("Não abre chaves")
 
                 resultado_if_block = Parser.parseCommand(self)
                 # print(resultado_if_block)
@@ -727,6 +666,9 @@ class PreProcessing():
         # filtered = re.sub("[/*@*&?].*[*/@*&?]" ,"" ,codigo).replace(" ", "")
         filtered = re.sub(re.compile("/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/",re.DOTALL ) ,"" ,new_filtered).replace(" ", "").replace("\n", "")
         filtered = filtered.replace('\t', "")
+
+        if 'else' in filtered and 'if' not in filtered:
+            raise Exception("Error - Else without If")
 
         for item in range(len(filtered)):
             if (filtered[item] == "/" and filtered[item + 1] == "*") or filtered[item] == "*" and filtered[item + 1] == "/":
