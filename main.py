@@ -728,6 +728,10 @@ class PreProcessing():
         filtroT = pyparsing.nestedExpr("/*", "*/").suppress()
         somaa_p = 0
         somaf_p = 0
+
+        somaa_c = 0
+        somaf_c = 0
+
         varFiltered = filtroT.transformString(codigo)
         new_filtered = ''
 
@@ -757,7 +761,14 @@ class PreProcessing():
                 somaa_p += 1
             if item == ")":
                 somaf_p += 1
+            if item == "{":
+                somaa_c += 1
+            if item == "}":
+                somaf_c += 1
         somaf = somaa_p + somaf_p
+        somac = somaf_c + somaa_c
+        if (somac % 2) != 0:
+            raise Exception("Error - chaves nao esta fechando")
         if (somaf % 2) != 0:
             raise Exception("Error - parenteses não esta fechando")
 
