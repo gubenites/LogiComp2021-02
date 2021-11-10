@@ -103,6 +103,11 @@ class alocaOp(Node):
     def Evaluate(self):
 
         symbolTable = SymbolTable(self.children[0].value)
+
+        # if self.children[0].value in symbolTab
+
+        # if symbolTable.getter():
+
         symbolTable.setter(self.children[1].Evaluate())
 
 class readOp(Node):
@@ -113,8 +118,23 @@ class SymbolTable:
     def __init__(self,var):
         self.var = var
 
-    def setter(self,valor):
-        symbolTab[self.var] = valor
+    def setter(self, valor):
+        try:
+            symbolTab[self.var] = int(valor)
+        except:
+            raise Exception("Error - variavel não é numero inteiro")
+
+    # def setter(self,valor, tipo):
+    #     if tipo == "int":
+    #         try:
+    #             symbolTab[self.var] = int(valor)
+    #         except:
+    #             raise Exception("Error - variavel não é numero inteiro")
+    #     if tipo == "str":
+    #         try:
+    #             symbolTab[self.var] = str(valor)
+    #         except:
+    #             raise Exception("Error - variavel não é string")
 
     def getter(self):
         if self.var in symbolTab:
