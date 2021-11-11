@@ -54,6 +54,10 @@ class IntVal(Node):
     def Evaluate(self):
         return self.value
 
+class StrVal(Node):
+    def Evaluate(self):
+        return str(self.value)
+
 class NoOp(Node):
     def Evaluate(self):
         pass
@@ -103,14 +107,13 @@ class attributionOp(Node):
 
 class alocaOp(Node):
     def Evaluate(self):
+        if len(self.children) == 2:
+            symbolTable = SymbolTable(self.children[0].value)
+            symbolTable.setter(self.children[1].Evaluate(), None)
 
-        symbolTable = SymbolTable(self.children[0].value)
-
-        # if self.children[0].value in symbolTab
-
-        # if symbolTable.getter():
-
-        symbolTable.setter(self.children[1].Evaluate())
+        if len(self.children) == 3:
+            symbolTable = SymbolTable(self.children[1].value)
+            symbolTable.setter(self.children[2].Evaluate(), self.children[0])
 
 class readOp(Node):
     def Evaluate(self):
@@ -120,23 +123,28 @@ class SymbolTable:
     def __init__(self,var):
         self.var = var
 
-    def setter(self, valor):
-        try:
-            symbolTab[self.var] = int(valor)
-        except:
-            raise Exception("Error - variavel não é numero inteiro")
+    def setter(self, valor, tipo):
+        if tipo == None:
+            try:
+                symbolTab[self.var] = int(valor)
+            except:
+                try:
+                    symbolTab[self.var] = str(valor)
+                except:
+                    raise Exception("Não foi possivel declarar a variavel")
 
-    # def setter(self,valor, tipo):
-    #     if tipo == "int":
-    #         try:
-    #             symbolTab[self.var] = int(valor)
-    #         except:
-    #             raise Exception("Error - variavel não é numero inteiro")
-    #     if tipo == "str":
-    #         try:
-    #             symbolTab[self.var] = str(valor)
-    #         except:
-    #             raise Exception("Error - variavel não é string")
+        if tipo != None:
+            if tipo == "int":
+                try:
+                    symbolTab[self.var] = int(valor)
+                except:
+                    raise Exception("Error - variavel não é numero inteiro")
+
+            if tipo == "str":
+                try:
+                    symbolTab[self.var] = str(valor)
+                except:
+                    raise Exception("Error - variavel não é string")
 
     def getter(self):
         if self.var in symbolTab:
@@ -170,6 +178,9 @@ class Tokenizer:
     def intToken(self, concInt):
         self.actual = Token("Inteiro", int(concInt))
 
+    def strToken(self, concString):
+        self.actual = Token("STR", str(concString))
+
     def parToken(self,token):
         self.actual = Token("Parenteses",self.origin[self.position])
         self.position += 1
@@ -178,7 +189,7 @@ class Tokenizer:
         numeros = [str(i + 1) for i in range(-1,9)]
         alphabet_string = list(string.ascii_lowercase)
         list_not_accepted = list(string.ascii_uppercase)
-        list_reserved_words = ["if","else","while","println","readln"]
+        list_reserved_words = ["if","else","while","println","readln", "int", "str"]
         list_symbols = ["&","|","_"]
         concString = ""
         concSymbols = ""
@@ -213,6 +224,24 @@ class Tokenizer:
                 return self.actual
 
             # try:
+
+            if self.origin[self.position] == "=":
+                self.position += 1
+
+            # print(self.origin[self.position])
+            if self.origin[self.position] == "'":
+                self.position += 1
+                concString = ""
+
+                while self.origin[self.position] != "'":
+                    concString += self.origin[self.position]
+                    self.position += 1
+
+                self.actual = Token("String", concString)
+                self.position += 1
+
+                return self.actual
+
             if self.origin[self.position] in numeros:
                 while self.origin[self.position] in numeros:
                     if flag_:
@@ -228,6 +257,7 @@ class Tokenizer:
                         break
 
                 self.intToken(concString)
+
                 return self.actual
             # except:
             #     pass
@@ -268,6 +298,16 @@ class Tokenizer:
 
                     concString += self.origin[self.position]
                     self.position += 1
+
+                if concString == "int":
+                    self.actual = Token("INT", concString)
+
+                    return self.actual
+
+                if concString == "str":
+                    self.actual = Token("STR", concString)
+
+                    return self.actual
 
                 if concString == "for":
                     self.actual = Token("FOR", concString)
@@ -408,6 +448,9 @@ class Parser:
         if actToken.type == "Inteiro":
             return IntVal(actToken.value)
 
+        if actToken.type == "String":
+            return StrVal(actToken.value)
+
         if actToken.value == "+":
             resultado = UnOp(actToken.value)
             actToken = self.tokens.selectNext()
@@ -510,6 +553,30 @@ class Parser:
         actToken = self.tokens.actual
 
         resultado = NoOp(None)
+
+        if actToken.type == "INT" or actToken.type == "STR":
+            varToAlocate = alocaOp(None)
+
+            varToAlocate.children.append(actToken.value)
+
+            actToken = self.tokens.selectNext()
+            varName = alocaOp(self.tokens.actual.value)
+
+            actToken = self.tokens.selectNext()
+
+            varToAlocate.children.append(varName)
+
+            if actToken.type != "Variable" and actToken.type != "READ" and actToken.type != "Inteiro" and actToken.type != "String":
+                actToken = self.tokens.selectNext()
+
+            resultado_alocate = Parser.orExpr(self)
+
+            varToAlocate.children.append(resultado_alocate)
+            actToken = self.tokens.actual
+
+            resultado = varToAlocate
+
+            return resultado
 
         if actToken.type == "Variable" or actToken.type == "PRINT" or actToken.value == ";":
             if actToken.type == "Variable":
@@ -768,7 +835,7 @@ class PreProcessing():
         somaf = somaa_p + somaf_p
         somac = somaf_c + somaa_c
         if (somac % 2) != 0:
-            raise Exception("Error - chaves nao esta fechando")
+            raise Exception("Error - chave não esta fechando")
         if (somaf % 2) != 0:
             raise Exception("Error - parenteses não esta fechando")
 
