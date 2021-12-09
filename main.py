@@ -954,4 +954,7 @@ operacao = ''.join(sys.argv[1:])
 pars = Parser()
 resultado = pars.run(operacao)
 resultado.Evaluate()
-pp.pprint(P_Code.commands)
+list_output = P_Code.commands
+# pp.pprint(''.join(list(P_Code.commands)))
+string_output = ''.join(list_output)
+print(string_output)
