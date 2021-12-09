@@ -2,8 +2,22 @@ import sys
 import pyparsing
 import re
 import string
+import pprint as pp
 
 symbolTab = dict()
+loop_number = 0
+
+def get_loopNum():
+    global loop_number
+    loop_number += 4
+    return loop_number
+
+
+class P_Code:
+    commands = []
+
+    def AddCommand(command):
+        P_Code.commands.append(command)
 
 class Node:
     def __init__(self, value):
@@ -17,20 +31,34 @@ class BinOp(Node):
         rChild = self.children[1].Evaluate()
 
         if self.value == "*":
+            command = "opr 0 {0};\n".format(4)
+            P_Code.AddCommand(command)
             return lChild * rChild
         if self.value == "/":
+            command = "opr 0 {0};\n".format(5)
+            P_Code.AddCommand(command)
             return int(lChild / rChild)
         if self.value == "+":
+            command = "opr 0 {0};\n".format(2)
+            P_Code.AddCommand(command)
             return lChild + rChild
         if self.value == "-":
+            command = "opr 0 {0};\n".format(3)
+            P_Code.AddCommand(command)
             return lChild - rChild
         if self.value == ">":
+            command = "opr 0 {0};\n".format(12)
+            P_Code.AddCommand(command)
             return lChild > rChild
         if self.value == "<":
+            command = "opr 0 {0};\n".format(3)
+            P_Code.AddCommand(command)
             return lChild < rChild
         if self.value == "&&":
             return lChild and rChild
         if self.value == "==":
+            command = "opr 0 {0};\n".format(3)
+            P_Code.AddCommand(command)
             return lChild == rChild
         if self.value == "||":
             return lChild or rChild
@@ -44,6 +72,8 @@ class UnOp(Node):
         if self.value == "+":
             return 1 * child
         if self.value == "-":
+            command = "opr 0 {0};\n".format(1)
+            P_Code.AddCommand(command)
             return -1 * child
         if self.value == "!":
             return (not child)
@@ -52,6 +82,8 @@ class UnOp(Node):
 
 class IntVal(Node):
     def Evaluate(self):
+        command = "lit 0 {0};\n".format(self.value)
+        P_Code.AddCommand(command)
         return self.value
 
 class StrVal(Node):
@@ -68,26 +100,87 @@ class printOp(Node):
 
 class ForOp(Node):
     def Evaluate(self):
-        # self.children[0].Evaluate()
-        #
+        loop_number = get_loopNum()
+
+        self.children[0].Evaluate()
+
+        command = "cal 0 F_LOOP_{};\n".format(loop_number)
+        P_Code.AddCommand(command)
+
+        condition = self.children[1].Evaluate()
+
+        command = "jpc 0 F_LOOP_EXIT_{};\n".format(loop_number)
+        P_Code.AddCommand(command)
+
+        self.children[3].Evaluate()
+        self.children[2].Evaluate()
+
+        command = "jmp 0 F_LOOP_{};\n".format(loop_number)
+        P_Code.AddCommand(command)
+
+        command = "cal 0 F_LOOP_EXIT_{};\n".format(loop_number)
+        P_Code.AddCommand(command)
+
         # while(self.children[1].Evaluate()):
-        #     self.children[3].Evaluate()
-        #     self.children[2].Evaluate()
-        pass
+            # self.children[3].Evaluate()
+            # self.children[2].Evaluate()
 
 
 class WhileOp(Node):
     def Evaluate(self):
-        while(self.children[0].Evaluate()):
-            self.children[1].Evaluate()
+        loop_number = get_loopNum()
+
+        command = "cal 0 W_LOOP_{};\n".format(loop_number)
+        P_Code.AddCommand(command)
+
+        condition = self.children[0].Evaluate()
+
+        command = "jpc 0 W_LOOP_EXIT_{};\n".format(loop_number)
+        P_Code.AddCommand(command)
+
+        self.children[1].Evaluate()
+
+        command = "jmp 0 W_LOOP_{};\n".format(loop_number)
+        P_Code.AddCommand(command)
+
+        command = "cal 0 W_LOOP_EXIT_{};\n".format(loop_number)
+        P_Code.AddCommand(command)
+
+
+        # while(condition):
+        #     self.children[1].Evaluate()
 
 class ifOp(Node):
     def Evaluate(self):
+        loop_number = get_loopNum()
 
-        if(self.children[0].Evaluate()):
-            self.children[1].Evaluate()
-        elif(len(self.children) == 3):
+        condition = self.children[0].Evaluate()
+
+        if len(self.children) == 3:
+            command = "jpc 0 ELSE_{};\n".format(loop_number)
+            P_Code.AddCommand(command)
+
+        self.children[1].Evaluate()
+
+        command = "jmp 0 EXIT_{};\n".format(loop_number)
+        P_Code.AddCommand(command)
+
+        if len(self.children) == 3:
+            command = "cal 0 ELSE_{};\n".format(loop_number)
+            P_Code.AddCommand(command)
+
             self.children[2].Evaluate()
+            command = "jmp 0 EXIT_{};\n".format(loop_number)
+            P_Code.AddCommand(command)
+
+        command = "cal 0 EXIT_{};\n".format(loop_number)
+        P_Code.AddCommand(command)
+
+        # if(condition):
+        #     self.children[1].Evaluate()
+        # elif(len(self.children) == 3):
+        #     self.children[2].Evaluate()
+
 
 class Token:
     def __init__(self, type:str , value):
@@ -102,6 +195,8 @@ class Operacoes(Node):
 class attributionOp(Node):
     def Evaluate(self):
         var = SymbolTable(self.value)
+        command = "lod 0 {};\n".format(self.value)
+        P_Code.AddCommand(command)
 
         return var.getter()
 
@@ -111,9 +206,18 @@ class alocaOp(Node):
             symbolTable = SymbolTable(self.children[0].value)
             symbolTable.setter(self.children[1].Evaluate(), None)
 
+            command = "sto 0 {};\n".format(self.children[0].value)
+            P_Code.AddCommand(command)
+
+
         if len(self.children) == 3:
             symbolTable = SymbolTable(self.children[1].value)
             symbolTable.setter(self.children[2].Evaluate(), self.children[0])
+
+            command = "sto 0 {};\n".format(self.children[1].value)
+            P_Code.AddCommand(command)
+
+
 
 class readOp(Node):
     def Evaluate(self):
@@ -225,8 +329,8 @@ class Tokenizer:
 
             # try:
 
-            if self.origin[self.position] == "=":
-                self.position += 1
+            # if self.origin[self.position] == "=":
+            #     self.position += 1
 
             # print(self.origin[self.position])
             if self.origin[self.position] == "'":
@@ -487,7 +591,6 @@ class Parser:
 
         if actToken.type == "Variable":
             resultado = attributionOp(actToken.value)
-            # actToken = self.tokens.selectNext()
 
             return resultado
 
@@ -496,6 +599,7 @@ class Parser:
 
         resultado = Parser.parseFactor(self)
         actToken = self.tokens.selectNext()
+
         while actToken.value == "*" or actToken.value == "/":
             if actToken.value == "*":
                 BinaryOp = BinOp(actToken.value)
@@ -722,9 +826,11 @@ class Parser:
                 resultado_if_condition = Parser.orExpr(self)
 
                 ifNode.children.append(resultado_if_condition)
+
                 actToken = self.tokens.actual
 
                 if actToken.value != ")":
+
                     raise Exception("ERRO")
                 else:
                     actToken = self.tokens.selectNext()
@@ -848,3 +954,4 @@ operacao = ''.join(sys.argv[1:])
 pars = Parser()
 resultado = pars.run(operacao)
 resultado.Evaluate()
+pp.pprint(P_Code.commands)
