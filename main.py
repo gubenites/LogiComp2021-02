@@ -203,11 +203,16 @@ class attributionOp(Node):
 class alocaOp(Node):
     def Evaluate(self):
         if len(self.children) == 2:
-            symbolTable = SymbolTable(self.children[0].value)
-            symbolTable.setter(self.children[1].Evaluate(), None)
+            if self.children[0] == "int" or self.children[0] == "str":
+                symbolTable = SymbolTable(self.children[1].value)
+                symbolTable.setter(1, self.children[0])
 
-            command = "sto 0 {};\n".format(self.children[0].value)
-            P_Code.AddCommand(command)
+            else:
+                symbolTable = SymbolTable(self.children[0].value)
+                symbolTable.setter(self.children[1].Evaluate(), None)
+
+                command = "sto 0 {};\n".format(self.children[0].value)
+                P_Code.AddCommand(command)
 
 
         if len(self.children) == 3:
@@ -670,14 +675,15 @@ class Parser:
 
             varToAlocate.children.append(varName)
 
-            if actToken.type != "Variable" and actToken.type != "READ" and actToken.type != "Inteiro" and actToken.type != "String":
+            if actToken.type != "Variable" and actToken.type != "READ" and actToken.type != "Inteiro" and actToken.type != "String" and actToken.value != ";":
                 actToken = self.tokens.selectNext()
 
-            resultado_alocate = Parser.orExpr(self)
+            if actToken.value != ";":
+                resultado_alocate = Parser.orExpr(self)
 
-            varToAlocate.children.append(resultado_alocate)
+                varToAlocate.children.append(resultado_alocate)
+
             actToken = self.tokens.actual
-
             resultado = varToAlocate
 
             return resultado
