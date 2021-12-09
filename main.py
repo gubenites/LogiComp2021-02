@@ -31,33 +31,33 @@ class BinOp(Node):
         rChild = self.children[1].Evaluate()
 
         if self.value == "*":
-            command = "opr 0 {0};\n".format(4)
+            command = "opr 0 {0}\n".format(4)
             P_Code.AddCommand(command)
             return lChild * rChild
         if self.value == "/":
-            command = "opr 0 {0};\n".format(5)
+            command = "opr 0 {0}\n".format(5)
             P_Code.AddCommand(command)
             return int(lChild / rChild)
         if self.value == "+":
-            command = "opr 0 {0};\n".format(2)
+            command = "opr 0 {0}\n".format(2)
             P_Code.AddCommand(command)
             return lChild + rChild
         if self.value == "-":
-            command = "opr 0 {0};\n".format(3)
+            command = "opr 0 {0}\n".format(3)
             P_Code.AddCommand(command)
             return lChild - rChild
         if self.value == ">":
-            command = "opr 0 {0};\n".format(12)
+            command = "opr 0 {0}\n".format(12)
             P_Code.AddCommand(command)
             return lChild > rChild
         if self.value == "<":
-            command = "opr 0 {0};\n".format(3)
+            command = "opr 0 {0}\n".format(3)
             P_Code.AddCommand(command)
             return lChild < rChild
         if self.value == "&&":
             return lChild and rChild
         if self.value == "==":
-            command = "opr 0 {0};\n".format(3)
+            command = "opr 0 {0}\n".format(3)
             P_Code.AddCommand(command)
             return lChild == rChild
         if self.value == "||":
@@ -72,7 +72,7 @@ class UnOp(Node):
         if self.value == "+":
             return 1 * child
         if self.value == "-":
-            command = "opr 0 {0};\n".format(1)
+            command = "opr 0 {0}\n".format(1)
             P_Code.AddCommand(command)
             return -1 * child
         if self.value == "!":
@@ -82,7 +82,7 @@ class UnOp(Node):
 
 class IntVal(Node):
     def Evaluate(self):
-        command = "lit 0 {0};\n".format(self.value)
+        command = "lit 0 {0}\n".format(self.value)
         P_Code.AddCommand(command)
         return self.value
 
@@ -104,21 +104,21 @@ class ForOp(Node):
 
         self.children[0].Evaluate()
 
-        command = "cal 0 F_LOOP_{};\n".format(loop_number)
+        command = "cal 0 F_LOOP_{}\n".format(loop_number)
         P_Code.AddCommand(command)
 
         condition = self.children[1].Evaluate()
 
-        command = "jpc 0 F_LOOP_EXIT_{};\n".format(loop_number)
+        command = "jpc 0 F_LOOP_EXIT_{}\n".format(loop_number)
         P_Code.AddCommand(command)
 
         self.children[3].Evaluate()
         self.children[2].Evaluate()
 
-        command = "jmp 0 F_LOOP_{};\n".format(loop_number)
+        command = "jmp 0 F_LOOP_{}\n".format(loop_number)
         P_Code.AddCommand(command)
 
-        command = "cal 0 F_LOOP_EXIT_{};\n".format(loop_number)
+        command = "cal 0 F_LOOP_EXIT_{}\n".format(loop_number)
         P_Code.AddCommand(command)
 
         # while(self.children[1].Evaluate()):
@@ -130,20 +130,20 @@ class WhileOp(Node):
     def Evaluate(self):
         loop_number = get_loopNum()
 
-        command = "cal 0 W_LOOP_{};\n".format(loop_number)
+        command = "cal 0 W_LOOP_{}\n".format(loop_number)
         P_Code.AddCommand(command)
 
         condition = self.children[0].Evaluate()
 
-        command = "jpc 0 W_LOOP_EXIT_{};\n".format(loop_number)
+        command = "jpc 0 W_LOOP_EXIT_{}\n".format(loop_number)
         P_Code.AddCommand(command)
 
         self.children[1].Evaluate()
 
-        command = "jmp 0 W_LOOP_{};\n".format(loop_number)
+        command = "jmp 0 W_LOOP_{}\n".format(loop_number)
         P_Code.AddCommand(command)
 
-        command = "cal 0 W_LOOP_EXIT_{};\n".format(loop_number)
+        command = "cal 0 W_LOOP_EXIT_{}\n".format(loop_number)
         P_Code.AddCommand(command)
 
 
@@ -157,23 +157,23 @@ class ifOp(Node):
         condition = self.children[0].Evaluate()
 
         if len(self.children) == 3:
-            command = "jpc 0 ELSE_{};\n".format(loop_number)
+            command = "jpc 0 ELSE_{}\n".format(loop_number)
             P_Code.AddCommand(command)
 
         self.children[1].Evaluate()
 
-        command = "jmp 0 EXIT_{};\n".format(loop_number)
+        command = "jmp 0 EXIT_{}\n".format(loop_number)
         P_Code.AddCommand(command)
 
         if len(self.children) == 3:
-            command = "cal 0 ELSE_{};\n".format(loop_number)
+            command = "cal 0 ELSE_{}\n".format(loop_number)
             P_Code.AddCommand(command)
 
             self.children[2].Evaluate()
-            command = "jmp 0 EXIT_{};\n".format(loop_number)
+            command = "jmp 0 EXIT_{}\n".format(loop_number)
             P_Code.AddCommand(command)
 
-        command = "cal 0 EXIT_{};\n".format(loop_number)
+        command = "cal 0 EXIT_{}\n".format(loop_number)
         P_Code.AddCommand(command)
 
         # if(condition):
@@ -195,7 +195,7 @@ class Operacoes(Node):
 class attributionOp(Node):
     def Evaluate(self):
         var = SymbolTable(self.value)
-        command = "lod 0 {};\n".format(self.value)
+        command = "lod 0 {}\n".format(self.value)
         P_Code.AddCommand(command)
 
         return var.getter()
@@ -211,7 +211,7 @@ class alocaOp(Node):
                 symbolTable = SymbolTable(self.children[0].value)
                 symbolTable.setter(self.children[1].Evaluate(), None)
 
-                command = "sto 0 {};\n".format(self.children[0].value)
+                command = "sto 0 {}\n".format(self.children[0].value)
                 P_Code.AddCommand(command)
 
 
@@ -219,7 +219,7 @@ class alocaOp(Node):
             symbolTable = SymbolTable(self.children[1].value)
             symbolTable.setter(self.children[2].Evaluate(), self.children[0])
 
-            command = "sto 0 {};\n".format(self.children[1].value)
+            command = "sto 0 {}\n".format(self.children[1].value)
             P_Code.AddCommand(command)
 
 
